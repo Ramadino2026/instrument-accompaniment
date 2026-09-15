@@ -217,8 +217,11 @@ async function generateAccompaniment() {
     try {
         await simulateAccompanimentGeneration(tempo, key, style);
         
-        const accompaniment = generateToneAudio(key);
-        const mixed = generateToneAudio(key);
+        // Get the duration of the original recording
+        const originalDuration = await getAudioDuration(window.recordedAudioUrl);
+        
+        const accompaniment = generateToneAudio(key, originalDuration);
+        const mixed = generateToneAudio(key, originalDuration);
         
         document.getElementById('originalAudio').src = window.recordedAudioUrl;
         document.getElementById('accompanimentAudio').src = accompaniment;
@@ -234,6 +237,19 @@ async function generateAccompaniment() {
         showError('Error: ' + error.message);
         document.getElementById('loadingSection').style.display = 'none';
     }
+}
+
+// Get duration of audio from URL
+function getAudioDuration(audioUrl) {
+    return new Promise((resolve) => {
+        const audio = new Audio(audioUrl);
+        audio.onloadedmetadata = () => {
+            resolve(audio.duration);
+        };
+        audio.onerror = () => {
+            resolve(5); // Default 5 seconds if error
+        };
+    });
 }
 
 async function simulateAccompanimentGeneration(tempo, key, style) {
@@ -253,8 +269,8 @@ async function simulateAccompanimentGeneration(tempo, key, style) {
     });
 }
 
-// Generate pure audio tone without createAudioBuffer
-function generateToneAudio(key) {
+// Generate piano accompaniment tone with proper duration
+function generateToneAudio(key, duration = 5) {
     const frequencies = {
         'C': 261.63, 'G': 392.00, 'D': 293.66, 'A': 440.00,
         'E': 329.63, 'B': 493.88, 'F': 349.23, 'Bb': 466.16,
@@ -262,15 +278,24 @@ function generateToneAudio(key) {
     };
     
     const frequency = frequencies[key] || 440;
-    const duration = 5; // seconds
     const sampleRate = 44100;
-    const samples = duration * sampleRate;
+    const samples = Math.floor(duration * sampleRate);
     const audioData = new Float32Array(samples);
     
-    // Generate sine wave
+    // Generate sine wave with proper amplitude
     for (let i = 0; i < samples; i++) {
         const t = i / sampleRate;
-        audioData[i] = 0.3 * Math.sin(2 * Math.PI * frequency * t);
+        // Generate a chord progression for more musical sound
+        const freq1 = frequency;
+        const freq2 = frequency * 1.25; // major third
+        const freq3 = frequency * 1.5;  // perfect fifth
+        
+        const wave1 = Math.sin(2 * Math.PI * freq1 * t);
+        const wave2 = Math.sin(2 * Math.PI * freq2 * t);
+        const wave3 = Math.sin(2 * Math.PI * freq3 * t);
+        
+        // Mix the waves
+        audioData[i] = (wave1 * 0.4 + wave2 * 0.3 + wave3 * 0.2) * 0.5;
     }
     
     const wavBlob = createWavBlob(audioData, sampleRate);
@@ -285,28 +310,29 @@ function createWavBlob(audioData, sampleRate) {
     return blob;
 }
 
-// Create WAV file header
+// Create WAV file header with correct format
 function createWavHeader(dataSize, sampleRate) {
     const buffer = new ArrayBuffer(44);
     const view = new DataView(buffer);
     
-    // "RIFF" chunk
-    view.setUint32(0, 0x46464952, false); // "RIFF"
-    view.setUint32(4, 36 + dataSize, true);
-    view.setUint32(8, 0x45564157, false); // "WAVE"
+    const writeString = (offset, str) => {
+        for (let i = 0; i < str.length; i++) {
+            view.setUint8(offset + i, str.charCodeAt(i));
+        }
+    };
     
-    // "fmt " subchunk
-    view.setUint32(12, 0x20746d66, false); // "fmt "
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
     view.setUint32(16, 16, true); // subchunk1Size
     view.setUint16(20, 1, true); // PCM format
     view.setUint16(22, 1, true); // mono
-    view.setUint32(24, sampleRate, true);
+    view.setUint32(24, sampleRate, true); // sample rate
     view.setUint32(28, sampleRate * 2, true); // byteRate
     view.setUint16(32, 2, true); // blockAlign
     view.setUint16(34, 16, true); // bitsPerSample
-    
-    // "data" subchunk
-    view.setUint32(36, 0x61746164, false); // "data"
+    writeString(36, 'data');
     view.setUint32(40, dataSize, true);
     
     return new Uint8Array(buffer);
