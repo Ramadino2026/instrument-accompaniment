@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instrument Accompaniment Generator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎵 Instrument Accompaniment Generator</h1>
+            <p>Record or upload your instrument and get a piano accompaniment</p>
+        </header>
+
+        <main>
+            <!-- Recording Section -->
+            <section class="section recording-section">
+                <h2>Record Your Performance</h2>
+                <div class="controls">
+                    <button id="recordBtn" class="btn btn-primary">🎤 Start Recording</button>
+                    <button id="stopBtn" class="btn btn-danger" disabled>⏹ Stop Recording</button>
+                    <button id="playBtn" class="btn btn-secondary" disabled>▶ Play Recording</button>
+                </div>
+                <div class="timer" id="timer">00:00</div>
+                <div class="waveform-container">
+                    <canvas id="waveform" width="400" height="100"></canvas>
+                </div>
+            </section>
+
+            <!-- Upload Section -->
+            <section class="section upload-section">
+                <h2>Or Upload an Audio File</h2>
+                <div class="upload-area" id="uploadArea">
+                    <p>Drag and drop your audio file here or click to select</p>
+                    <input type="file" id="audioFile" accept="audio/*" style="display:none;">
+                </div>
+                <div class="file-info" id="fileInfo" style="display:none;">
+                    <p>File: <span id="fileName"></span></p>
+                    <p>Duration: <span id="fileDuration"></span>s</p>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section class="section settings-section">
+                <h2>Accompaniment Settings</h2>
+                <div class="setting-group">
+                    <label for="tempo">Tempo (BPM):</label>
+                    <input type="range" id="tempo" min="60" max="200" value="120">
+                    <span id="tempoValue">120</span>
+                </div>
+                <div class="setting-group">
+                    <label for="key">Key:</label>
+                    <select id="key">
+                        <option value="C">C Major</option>
+                        <option value="G">G Major</option>
+                        <option value="D">D Major</option>
+                        <option value="A">A Major</option>
+                        <option value="E">E Major</option>
+                        <option value="B">B Major</option>
+                        <option value="F">F Major</option>
+                        <option value="Bb">Bb Major</option>
+                        <option value="Eb">Eb Major</option>
+                        <option value="Ab">Ab Major</option>
+                        <option value="Db">Db Major</option>
+                        <option value="Gb">Gb Major</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label for="style">Accompaniment Style:</label>
+                    <select id="style">
+                        <option value="classical">Classical</option>
+                        <option value="jazz">Jazz</option>
+                        <option value="blues">Blues</option>
+                        <option value="contemporary">Contemporary</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- Generate Section -->
+            <section class="section generate-section">
+                <button id="generateBtn" class="btn btn-large btn-success" disabled>
+                    ✨ Generate Piano Accompaniment
+                </button>
+            </section>
+
+            <!-- Results Section -->
+            <section class="section results-section" id="resultsSection" style="display:none;">
+                <h2>Your Accompaniment</h2>
+                <div class="audio-player">
+                    <h3>Original Recording</h3>
+                    <audio id="originalAudio" controls></audio>
+                </div>
+                <div class="audio-player">
+                    <h3>Piano Accompaniment</h3>
+                    <audio id="accompanimentAudio" controls></audio>
+                </div>
+                <div class="audio-player">
+                    <h3>Mixed Together</h3>
+                    <audio id="mixedAudio" controls></audio>
+                </div>
+                <div class="action-buttons">
+                    <button id="downloadBtn" class="btn btn-primary">⬇ Download All</button>
+                    <button id="resetBtn" class="btn btn-secondary">🔄 Start Over</button>
+                </div>
+            </section>
+
+            <!-- Loading Section -->
+            <section class="section loading-section" id="loadingSection" style="display:none;">
+                <div class="spinner"></div>
+                <p>Generating your piano accompaniment...</p>
+                <div class="progress-bar">
+                    <div class="progress" id="progress"></div>
+                </div>
+            </section>
+
+            <!-- Error Section -->
+            <div class="error-message" id="errorMessage" style="display:none;"></div>
+        </main>
+
+        <footer>
+            <p>© 2026 Instrument Accompaniment Generator | Powered by AI Music Technology</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
