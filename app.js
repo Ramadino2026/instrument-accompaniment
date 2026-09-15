@@ -218,7 +218,7 @@ async function generateAccompaniment() {
     const style = document.getElementById('style').value;
     
     try {
-        // Simulate processing (in real implementation, this would call a backend API)
+        // Simulate processing
         await simulateAccompanimentGeneration(tempo, key, style);
         
         // Generate mock audio files
@@ -237,6 +237,7 @@ async function generateAccompaniment() {
         document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
         
     } catch (error) {
+        console.error('Error details:', error);
         showError('Error generating accompaniment: ' + error.message);
         document.getElementById('loadingSection').style.display = 'none';
     }
@@ -259,62 +260,43 @@ async function simulateAccompanimentGeneration(tempo, key, style) {
     });
 }
 
+// Simple WAV generator without needing createAudioBuffer
+function generateSimpleWAV(duration, frequency, sampleRate) {
+    const samples = sampleRate * duration;
+    const wav = new Float32Array(samples);
+    
+    for (let i = 0; i < samples; i++) {
+        const t = i / sampleRate;
+        // Simple sine wave
+        wav[i] = 0.3 * Math.sin(2 * Math.PI * frequency * t);
+    }
+    
+    return encodeWAV(wav, sampleRate);
+}
+
 async function generateMockAudio(tempo, key, type) {
     return new Promise((resolve) => {
-        const ctx = initAudioContext();
+        const duration = 5; // seconds
+        const sampleRate = 44100;
         
-        const duration = 10; // seconds
-        const sampleRate = ctx.sampleRate;
-        
-        // Create audio buffer properly
-        const audioBuffer = ctx.createAudioBuffer({
-            numberOfChannels: 1,
-            length: sampleRate * duration,
-            sampleRate: sampleRate
-        });
-        
-        const data = audioBuffer.getChannelData(0);
-        
-        // Generate simple tones based on key
-        const keyNotes = {
-            'C': [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88],
-            'G': [392.00, 440.00, 493.88, 523.25, 587.33, 659.25, 739.99],
-            'D': [293.66, 329.63, 369.99, 392.00, 440.00, 493.88, 554.37],
-            'A': [440.00, 493.88, 554.37, 587.33, 659.25, 739.99, 830.61],
-            'E': [329.63, 369.99, 415.30, 440.00, 493.88, 554.37, 622.25],
-            'B': [493.88, 554.37, 622.25, 659.25, 739.99, 830.61, 932.33],
-            'F': [349.23, 392.00, 440.00, 466.16, 523.25, 587.33, 659.25],
-            'Bb': [466.16, 523.25, 587.33, 622.25, 698.46, 783.99, 880.00],
-            'Eb': [311.13, 349.23, 392.00, 415.30, 466.16, 523.25, 587.33],
-            'Ab': [415.30, 466.16, 523.25, 554.37, 622.25, 698.46, 783.99],
-            'Db': [277.18, 311.13, 349.23, 369.99, 415.30, 466.16, 523.25],
-            'Gb': [369.99, 415.30, 466.16, 493.88, 554.37, 622.25, 698.46]
+        // Generate simple tone based on key
+        const keyFrequencies = {
+            'C': 261.63,
+            'G': 392.00,
+            'D': 293.66,
+            'A': 440.00,
+            'E': 329.63,
+            'B': 493.88,
+            'F': 349.23,
+            'Bb': 466.16,
+            'Eb': 311.13,
+            'Ab': 415.30,
+            'Db': 277.18,
+            'Gb': 369.99
         };
         
-        const notes = keyNotes[key] || keyNotes['C'];
-        let t = 0;
-        
-        for (let i = 0; i < data.length; i++) {
-            t = i / sampleRate;
-            
-            // Generate chord progression
-            const noteIndex = Math.floor((t * 2) % notes.length);
-            const frequency = notes[noteIndex];
-            
-            // Add harmonic content
-            let sample = 0;
-            sample += 0.3 * Math.sin(2 * Math.PI * frequency * t);
-            sample += 0.2 * Math.sin(2 * Math.PI * frequency * 2 * t);
-            sample += 0.1 * Math.sin(2 * Math.PI * frequency * 0.5 * t);
-            
-            // Apply envelope
-            const envelope = Math.exp(-t * 0.2);
-            data[i] = sample * envelope * 0.3;
-        }
-        
-        // Convert to WAV blob
-        const audioData = new Float32Array(data);
-        const wavBlob = encodeWAV(audioData, sampleRate);
+        const frequency = keyFrequencies[key] || 440;
+        const wavBlob = generateSimpleWAV(duration, frequency, sampleRate);
         resolve(wavBlob);
     });
 }
@@ -330,19 +312,23 @@ function encodeWAV(samples, sampleRate) {
         }
     };
     
+    const channelCount = 1;
+    const byteRate = sampleRate * channelCount * 2;
+    const blockAlign = channelCount * 2;
+    
     writeString(0, 'RIFF');
     view.setUint32(4, 36 + samples.length * 2, true);
     writeString(8, 'WAVE');
     writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
+    view.setUint32(16, 16, true); // fmt chunk size
+    view.setUint16(20, 1, true); // audio format (PCM)
+    view.setUint16(22, channelCount, true); // channels
+    view.setUint32(24, sampleRate, true); // sample rate
+    view.setUint32(28, byteRate, true); // byte rate
+    view.setUint16(32, blockAlign, true); // block align
+    view.setUint16(34, 16, true); // bits per sample
     writeString(36, 'data');
-    view.setUint32(40, samples.length * 2, true);
+    view.setUint32(40, samples.length * 2, true); // data chunk size
     
     // Write samples
     let offset = 44;
