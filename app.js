@@ -137,7 +137,6 @@ document.getElementById('playBtn').addEventListener('click', () => {
 // Display recorded audio
 function displayRecordedAudio(blob) {
     const audioUrl = URL.createObjectURL(blob);
-    // Store for later use
     window.recordedAudioUrl = audioUrl;
 }
 
@@ -183,7 +182,6 @@ function handleFileSelect(e) {
         document.getElementById('fileInfo').style.display = 'block';
         document.getElementById('generateBtn').disabled = false;
         
-        // Get file duration
         const audio = new Audio(URL.createObjectURL(file));
         audio.onloadedmetadata = () => {
             document.getElementById('fileDuration').textContent = 
@@ -209,7 +207,6 @@ async function generateAccompaniment() {
         return;
     }
     
-    // Show loading
     document.getElementById('loadingSection').style.display = 'block';
     document.getElementById('resultsSection').style.display = 'none';
     
@@ -218,27 +215,23 @@ async function generateAccompaniment() {
     const style = document.getElementById('style').value;
     
     try {
-        // Simulate processing
         await simulateAccompanimentGeneration(tempo, key, style);
         
-        // Generate mock audio files
-        const accompaniment = await generateMockAudio(tempo, key, 'piano');
-        const mixed = await generateMockAudio(tempo, key, 'mixed');
+        const accompaniment = generateToneAudio(key);
+        const mixed = generateToneAudio(key);
         
-        // Display results
         document.getElementById('originalAudio').src = window.recordedAudioUrl;
-        document.getElementById('accompanimentAudio').src = URL.createObjectURL(accompaniment);
-        document.getElementById('mixedAudio').src = URL.createObjectURL(mixed);
+        document.getElementById('accompanimentAudio').src = accompaniment;
+        document.getElementById('mixedAudio').src = mixed;
         
         document.getElementById('loadingSection').style.display = 'none';
         document.getElementById('resultsSection').style.display = 'block';
         
-        // Scroll to results
         document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
         
     } catch (error) {
-        console.error('Error details:', error);
-        showError('Error generating accompaniment: ' + error.message);
+        console.error('Full error:', error);
+        showError('Error: ' + error.message);
         document.getElementById('loadingSection').style.display = 'none';
     }
 }
@@ -260,85 +253,73 @@ async function simulateAccompanimentGeneration(tempo, key, style) {
     });
 }
 
-// Simple WAV generator without needing createAudioBuffer
-function generateSimpleWAV(duration, frequency, sampleRate) {
-    const samples = sampleRate * duration;
-    const wav = new Float32Array(samples);
-    
-    for (let i = 0; i < samples; i++) {
-        const t = i / sampleRate;
-        // Simple sine wave
-        wav[i] = 0.3 * Math.sin(2 * Math.PI * frequency * t);
-    }
-    
-    return encodeWAV(wav, sampleRate);
-}
-
-async function generateMockAudio(tempo, key, type) {
-    return new Promise((resolve) => {
-        const duration = 5; // seconds
-        const sampleRate = 44100;
-        
-        // Generate simple tone based on key
-        const keyFrequencies = {
-            'C': 261.63,
-            'G': 392.00,
-            'D': 293.66,
-            'A': 440.00,
-            'E': 329.63,
-            'B': 493.88,
-            'F': 349.23,
-            'Bb': 466.16,
-            'Eb': 311.13,
-            'Ab': 415.30,
-            'Db': 277.18,
-            'Gb': 369.99
-        };
-        
-        const frequency = keyFrequencies[key] || 440;
-        const wavBlob = generateSimpleWAV(duration, frequency, sampleRate);
-        resolve(wavBlob);
-    });
-}
-
-function encodeWAV(samples, sampleRate) {
-    const buffer = new ArrayBuffer(44 + samples.length * 2);
-    const view = new DataView(buffer);
-    
-    // WAV header
-    const writeString = (offset, string) => {
-        for (let i = 0; i < string.length; i++) {
-            view.setUint8(offset + i, string.charCodeAt(i));
-        }
+// Generate pure audio tone without createAudioBuffer
+function generateToneAudio(key) {
+    const frequencies = {
+        'C': 261.63, 'G': 392.00, 'D': 293.66, 'A': 440.00,
+        'E': 329.63, 'B': 493.88, 'F': 349.23, 'Bb': 466.16,
+        'Eb': 311.13, 'Ab': 415.30, 'Db': 277.18, 'Gb': 369.99
     };
     
-    const channelCount = 1;
-    const byteRate = sampleRate * channelCount * 2;
-    const blockAlign = channelCount * 2;
+    const frequency = frequencies[key] || 440;
+    const duration = 5; // seconds
+    const sampleRate = 44100;
+    const samples = duration * sampleRate;
+    const audioData = new Float32Array(samples);
     
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + samples.length * 2, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true); // fmt chunk size
-    view.setUint16(20, 1, true); // audio format (PCM)
-    view.setUint16(22, channelCount, true); // channels
-    view.setUint32(24, sampleRate, true); // sample rate
-    view.setUint32(28, byteRate, true); // byte rate
-    view.setUint16(32, blockAlign, true); // block align
-    view.setUint16(34, 16, true); // bits per sample
-    writeString(36, 'data');
-    view.setUint32(40, samples.length * 2, true); // data chunk size
-    
-    // Write samples
-    let offset = 44;
-    for (let i = 0; i < samples.length; i++) {
-        const s = Math.max(-1, Math.min(1, samples[i]));
-        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-        offset += 2;
+    // Generate sine wave
+    for (let i = 0; i < samples; i++) {
+        const t = i / sampleRate;
+        audioData[i] = 0.3 * Math.sin(2 * Math.PI * frequency * t);
     }
     
-    return new Blob([buffer], { type: 'audio/wav' });
+    const wavBlob = createWavBlob(audioData, sampleRate);
+    return URL.createObjectURL(wavBlob);
+}
+
+// Create WAV blob from audio data
+function createWavBlob(audioData, sampleRate) {
+    const wavHeader = createWavHeader(audioData.length * 2, sampleRate);
+    const pcmData = float32ToPcm16(audioData);
+    const blob = new Blob([wavHeader, pcmData], { type: 'audio/wav' });
+    return blob;
+}
+
+// Create WAV file header
+function createWavHeader(dataSize, sampleRate) {
+    const buffer = new ArrayBuffer(44);
+    const view = new DataView(buffer);
+    
+    // "RIFF" chunk
+    view.setUint32(0, 0x46464952, false); // "RIFF"
+    view.setUint32(4, 36 + dataSize, true);
+    view.setUint32(8, 0x45564157, false); // "WAVE"
+    
+    // "fmt " subchunk
+    view.setUint32(12, 0x20746d66, false); // "fmt "
+    view.setUint32(16, 16, true); // subchunk1Size
+    view.setUint16(20, 1, true); // PCM format
+    view.setUint16(22, 1, true); // mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true); // byteRate
+    view.setUint16(32, 2, true); // blockAlign
+    view.setUint16(34, 16, true); // bitsPerSample
+    
+    // "data" subchunk
+    view.setUint32(36, 0x61746164, false); // "data"
+    view.setUint32(40, dataSize, true);
+    
+    return new Uint8Array(buffer);
+}
+
+// Convert float32 to PCM16
+function float32ToPcm16(float32Array) {
+    const pcm16 = new Int16Array(float32Array.length);
+    for (let i = 0; i < float32Array.length; i++) {
+        const sample = Math.max(-1, Math.min(1, float32Array[i]));
+        pcm16[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+    }
+    return pcm16.buffer;
 }
 
 // ==================== DOWNLOAD ====================
@@ -365,7 +346,6 @@ function downloadFile(url, filename) {
 // ==================== RESET ====================
 
 document.getElementById('resetBtn').addEventListener('click', () => {
-    // Reset all inputs
     document.getElementById('recordBtn').disabled = false;
     document.getElementById('stopBtn').disabled = true;
     document.getElementById('playBtn').disabled = true;
@@ -375,14 +355,12 @@ document.getElementById('resetBtn').addEventListener('click', () => {
     document.getElementById('fileInfo').style.display = 'none';
     document.getElementById('audioFile').value = '';
     
-    // Hide results
     document.getElementById('resultsSection').style.display = 'none';
     document.getElementById('loadingSection').style.display = 'none';
     
     currentAudioBlob = null;
     recordedChunks = [];
     
-    // Scroll to top
     window.scrollTo(0, 0);
 });
 
@@ -400,6 +378,5 @@ function showError(message) {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    // Set default tempo display
     document.getElementById('tempoValue').textContent = '120';
 });
