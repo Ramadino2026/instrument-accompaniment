@@ -13,6 +13,7 @@ function initAudioContext() {
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
+    return audioContext;
 }
 
 // ==================== RECORDING FUNCTIONALITY ====================
@@ -260,11 +261,18 @@ async function simulateAccompanimentGeneration(tempo, key, style) {
 
 async function generateMockAudio(tempo, key, type) {
     return new Promise((resolve) => {
-        initAudioContext();
+        const ctx = initAudioContext();
         
         const duration = 10; // seconds
-        const sampleRate = audioContext.sampleRate;
-        const audioBuffer = audioContext.createAudioBuffer(1, sampleRate * duration, sampleRate);
+        const sampleRate = ctx.sampleRate;
+        
+        // Create audio buffer properly
+        const audioBuffer = ctx.createAudioBuffer({
+            numberOfChannels: 1,
+            length: sampleRate * duration,
+            sampleRate: sampleRate
+        });
+        
         const data = audioBuffer.getChannelData(0);
         
         // Generate simple tones based on key
@@ -283,7 +291,7 @@ async function generateMockAudio(tempo, key, type) {
             'Gb': [369.99, 415.30, 466.16, 493.88, 554.37, 622.25, 698.46]
         };
         
-        const notes = keyNotes[key];
+        const notes = keyNotes[key] || keyNotes['C'];
         let t = 0;
         
         for (let i = 0; i < data.length; i++) {
