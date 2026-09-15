@@ -219,13 +219,18 @@ async function generateAccompaniment() {
         
         // Get the duration of the original recording
         const originalDuration = await getAudioDuration(window.recordedAudioUrl);
+        console.log('Original duration:', originalDuration);
         
-        const accompaniment = generateToneAudio(key, originalDuration);
-        const mixed = generateToneAudio(key, originalDuration);
+        const accompanimentUrl = generateToneAudio(key, originalDuration);
+        const mixedUrl = await generateMixedAudio(window.recordedAudioUrl, accompanimentUrl, originalDuration);
         
         document.getElementById('originalAudio').src = window.recordedAudioUrl;
-        document.getElementById('accompanimentAudio').src = accompaniment;
-        document.getElementById('mixedAudio').src = mixed;
+        document.getElementById('accompanimentAudio').src = accompanimentUrl;
+        document.getElementById('mixedAudio').src = mixedUrl;
+        
+        console.log('Original:', window.recordedAudioUrl);
+        console.log('Accompaniment:', accompanimentUrl);
+        console.log('Mixed:', mixedUrl);
         
         document.getElementById('loadingSection').style.display = 'none';
         document.getElementById('resultsSection').style.display = 'block';
@@ -244,10 +249,12 @@ function getAudioDuration(audioUrl) {
     return new Promise((resolve) => {
         const audio = new Audio(audioUrl);
         audio.onloadedmetadata = () => {
+            console.log('Audio metadata loaded, duration:', audio.duration);
             resolve(audio.duration);
         };
         audio.onerror = () => {
-            resolve(5); // Default 5 seconds if error
+            console.log('Error loading audio, using default 5 seconds');
+            resolve(5);
         };
     });
 }
@@ -294,12 +301,77 @@ function generateToneAudio(key, duration = 5) {
         const wave2 = Math.sin(2 * Math.PI * freq2 * t);
         const wave3 = Math.sin(2 * Math.PI * freq3 * t);
         
-        // Mix the waves
-        audioData[i] = (wave1 * 0.4 + wave2 * 0.3 + wave3 * 0.2) * 0.5;
+        // Mix the waves with envelope for fade in/out
+        const envelope = Math.min(1, Math.min(i / (sampleRate * 0.1), (samples - i) / (sampleRate * 0.1)));
+        audioData[i] = (wave1 * 0.4 + wave2 * 0.3 + wave3 * 0.2) * 0.6 * envelope;
     }
     
     const wavBlob = createWavBlob(audioData, sampleRate);
-    return URL.createObjectURL(wavBlob);
+    const url = URL.createObjectURL(wavBlob);
+    console.log('Generated tone URL:', url, 'duration:', duration);
+    return url;
+}
+
+// Generate mixed audio (original + accompaniment)
+async function generateMixedAudio(originalUrl, accompanimentUrl, duration) {
+    return new Promise((resolve) => {
+        const ctx = initAudioContext();
+        const sampleRate = ctx.sampleRate;
+        const totalSamples = Math.floor(duration * sampleRate);
+        const mixedAudioData = new Float32Array(totalSamples);
+        
+        // Load both audio sources
+        Promise.all([
+            fetchAudioData(originalUrl, duration),
+            fetchAudioData(accompanimentUrl, duration)
+        ]).then(([originalData, accompanimentData]) => {
+            // Mix the two audio streams
+            for (let i = 0; i < totalSamples; i++) {
+                const orig = originalData[i] || 0;
+                const accomp = accompanimentData[i] || 0;
+                // Mix with equal volume
+                mixedAudioData[i] = (orig * 0.5 + accomp * 0.5) * 0.9;
+            }
+            
+            const wavBlob = createWavBlob(mixedAudioData, sampleRate);
+            const url = URL.createObjectURL(wavBlob);
+            console.log('Generated mixed URL:', url);
+            resolve(url);
+        }).catch(err => {
+            console.error('Error mixing audio:', err);
+            // Fallback: just return the accompaniment
+            resolve(accompanimentUrl);
+        });
+    });
+}
+
+// Fetch audio data from URL
+function fetchAudioData(audioUrl, duration) {
+    return new Promise((resolve, reject) => {
+        const ctx = initAudioContext();
+        const sampleRate = ctx.sampleRate;
+        
+        fetch(audioUrl)
+            .then(response => response.arrayBuffer())
+            .then(arrayBuffer => {
+                ctx.decodeAudioData(arrayBuffer, (audioBuffer) => {
+                    const audioData = new Float32Array(Math.floor(duration * sampleRate));
+                    const channelData = audioBuffer.getChannelData(0);
+                    
+                    for (let i = 0; i < audioData.length; i++) {
+                        audioData[i] = channelData[i] || 0;
+                    }
+                    resolve(audioData);
+                }, (err) => {
+                    console.error('Decode error:', err);
+                    reject(err);
+                });
+            })
+            .catch(err => {
+                console.error('Fetch error:', err);
+                reject(err);
+            });
+    });
 }
 
 // Create WAV blob from audio data
