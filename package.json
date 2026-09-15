@@ -1,0 +1,62 @@
+{
+  "name": "instrument-accompaniment",
+  "version": "1.0.0",
+  "description": "🎵 AI-powered instrument accompaniment generator - Record your instrument and get instant piano accompaniment in any key and style",
+  "main": "server.py",
+  "type": "module",
+  "scripts": {
+    "start": "python3 server.py",
+    "dev": "live-server",
+    "serve": "npx http-server",
+    "serve-php": "php -S localhost:8000",
+    "build": "npm run minify",
+    "minify": "minify styles.css > styles.min.css && minify app.js > app.min.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "deploy:netlify": "netlify deploy --prod",
+    "deploy:vercel": "vercel --prod",
+    "lint": "eslint app.js",
+    "format": "prettier --write ."
+  },
+  "keywords": [
+    "music",
+    "accompaniment",
+    "generator",
+    "piano",
+    "ai",
+    "web-audio",
+    "instrument",
+    "recording",
+    "synthesis"
+  ],
+  "author": "Ramadino2026",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ramadino2026/instrument-accompaniment.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Ramadino2026/instrument-accompaniment/issues"
+  },
+  "homepage": "https://github.com/Ramadino2026/instrument-accompaniment#readme",
+  "devDependencies": {
+    "eslint": "^8.48.0",
+    "http-server": "^14.1.1",
+    "live-server": "^1.2.2",
+    "minify": "^10.0.0",
+    "prettier": "^3.0.0"
+  },
+  "dependencies": {
+    "netlify-cli": "^17.0.0",
+    "vercel": "^32.0.0"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0",
+    "python": ">=3.7"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}
